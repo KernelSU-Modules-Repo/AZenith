@@ -74,10 +74,14 @@ char* get_gamestart(void) {
 
     buf[n] = '\0';
 
-    if (strstr(buf, pkg)) {
-        return pkg;
+    char* token = strtok(buf, "|");
+    while (token) {
+        if (strcmp(token, pkg) == 0) {
+            return pkg;
+        }
+        token = strtok(NULL, "|");
     }
-
+    
     free(pkg);
     return NULL;
 }
