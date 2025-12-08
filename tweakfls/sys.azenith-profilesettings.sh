@@ -2010,15 +2010,7 @@ EOF
 		cmd migard stop-trace true 2>/dev/null
 		cmd migard trace-buffer-size 0 2>/dev/null
 	fi
-
-	kill_logd() {
-		zeshia 0 /sys/kernel/ccci/debug
-		zeshia 0 /sys/kernel/tracing/tracing_on
-		zeshia 0 /proc/sys/kernel/perf_event_paranoid
-		zeshia 0 /proc/sys/kernel/debug_locks
-		zeshia 0 /proc/sys/kernel/perf_cpu_time_max_percent
-		zeshia off /proc/sys/kernel/printk_devkmsg
-	}
+	
 	# List of logging services
 	list_logger="
     logd

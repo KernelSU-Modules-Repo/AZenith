@@ -56,37 +56,28 @@ char* get_gamestart(void) {
     char* pkg = get_visible_package();
     if (!pkg)
         return NULL;
-    FILE* gf = fopen(GAMELIST, "r");
-    if (!gf) {
+
+    FILE* fp = fopen(GAMELIST, "r");
+    if (!fp) {
         free(pkg);
         return NULL;
     }
-    fseek(gf, 0, SEEK_END);
-    long size = ftell(gf);
-    rewind(gf);
-    if (size <= 0) {
-        fclose(gf);
+
+    char buf[4096];
+    size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
+    fclose(fp);
+
+    if (n == 0) {
         free(pkg);
         return NULL;
     }
-    char* line = malloc(size + 1);
-    if (!line) {
-        fclose(gf);
-        free(pkg);
-        return NULL;
+
+    buf[n] = '\0';
+
+    if (strstr(buf, pkg)) {
+        return pkg;
     }
-    fread(line, 1, size, gf);
-    fclose(gf);
-    line[size] = '\0';
-    char* token = strtok(line, "|");
-    while (token) {
-        if (strcmp(token, pkg) == 0) {
-            free(line);
-            return pkg;
-        }
-        token = strtok(NULL, "|");
-    }
-    free(line);
+
     free(pkg);
     return NULL;
 }
