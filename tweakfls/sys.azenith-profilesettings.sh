@@ -43,7 +43,8 @@ JUSTINTIME_STATE="$(getprop persist.sys.azenithconf.justintime)"
 BYPASSCHG_STATE="$(getprop persist.sys.azenithconf.bypasschg)"
 DISTRACE_STATE="$(getprop persist.sys.azenithconf.disabletrace)"
 CLEARAPPS="$(getprop persist.sys.azenithconf.clearbg)"
-LITEMODE=$(getprop persist.sys.azenithconf.cpulimit)
+LITEMODE="$(getprop persist.sys.azenithconf.cpulimit)"
+VSYNCVALUE="$(getprop persist.sys.azenithconf.vsync)"
 
 # Logging Functions
 AZLog() {
@@ -61,7 +62,7 @@ dlog() {
 	message="$1"
 	timestamp=$(date +"%Y-%m-%d %H:%M:%S.%3N")
 	log_tag="AZenith"
-	echo "$timestamp I $log_tag: $message" >>"$logpath2"
+	echo "$timestamp I $log_tag: $message" >>"$LOGFILE"
     log -t "$log_tag" "$message"
 }
 
@@ -295,6 +296,14 @@ setgamefreqppm() {
 			cpu_minfreq=$(<"$path/cpuinfo_max_freq")
 			new_midtarget=$((cpu_maxfreq * 100 / 100))
 			new_midfreq=$(setfreqs "$path/scaling_available_frequencies" "$new_midtarget")
+			[ "$LITEMODE" -eq 1 ] && {
+				cpu_minfreq=$(<"$path/cpuinfo_min_freq")								
+				zeshia "$cluster $new_midfreq" "/proc/ppm/policy/hard_userlimit_max_cpu_freq"
+				zeshia "$cluster $cpu_minfreq" "/proc/ppm/policy/hard_userlimit_min_cpu_freq"
+				policy_name=$(basename "$path")
+			    dlog "Set $policy_name maxfreq=$new_midfreq minfreq=$cpu_minfreq"
+				continue
+			}
 			zeshia "$cluster $cpu_maxfreq" "/proc/ppm/policy/hard_userlimit_max_cpu_freq"
 			zeshia "$cluster $new_midfreq" "/proc/ppm/policy/hard_userlimit_min_cpu_freq"
 			policy_name=$(basename "$path")
@@ -309,6 +318,14 @@ setgamefreq() {
 		cpu_minfreq=$(<"$path/cpuinfo_max_freq")
 		new_midtarget=$((cpu_maxfreq * 100 / 100))
 		new_midfreq=$(setfreqs "$path/scaling_available_frequencies" "$new_midtarget")
+		[ "$LITEMODE" -eq 1 ] && {
+			cpu_minfreq=$(<"$path/cpuinfo_min_freq")								
+			zeshia "$cluster $new_midfreq" "/proc/ppm/policy/hard_userlimit_max_cpu_freq"
+			zeshia "$cluster $cpu_minfreq" "/proc/ppm/policy/hard_userlimit_min_cpu_freq"
+		    policy_name=$(basename "$path")
+			dlog "Set $policy_name maxfreq=$new_midfreq minfreq=$cpu_minfreq"
+			continue
+		}
 		zeshia "$cpu_maxfreq" "$path/scaling_max_freq"
 		zeshia "$new_midfreq" "$path/scaling_min_freq"
 		policy_name=$(basename "$path")
@@ -373,6 +390,14 @@ Dsetgamefreqppm() {
 			cpu_minfreq=$(<"$path/cpuinfo_max_freq")
 			new_midtarget=$((cpu_maxfreq * 100 / 100))
 			new_midfreq=$(setfreqs "$path/scaling_available_frequencies" "$new_midtarget")
+			[ "$LITEMODE" -eq 1 ] && {
+				cpu_minfreq=$(<"$path/cpuinfo_min_freq")								
+				zeshia "$cluster $new_midfreq" "/proc/ppm/policy/hard_userlimit_max_cpu_freq"
+				zeshia "$cluster $cpu_minfreq" "/proc/ppm/policy/hard_userlimit_min_cpu_freq"
+				policy_name=$(basename "$path")
+			    dlog "Set $policy_name maxfreq=$new_midfreq minfreq=$cpu_minfreq"
+				continue
+			}
 			applyppmnfreqsets "$cluster $cpu_maxfreq" "/proc/ppm/policy/hard_userlimit_max_cpu_freq"
 			applyppmnfreqsets "$cluster $new_midfreq" "/proc/ppm/policy/hard_userlimit_min_cpu_freq"
 		done
@@ -385,6 +410,14 @@ Dsetgamefreq() {
 		cpu_minfreq=$(<"$path/cpuinfo_max_freq")
 		new_midtarget=$((cpu_maxfreq * 100 / 100))
 		new_midfreq=$(setfreqs "$path/scaling_available_frequencies" "$new_midtarget")
+		[ "$LITEMODE" -eq 1 ] && {
+			cpu_minfreq=$(<"$path/cpuinfo_min_freq")								
+			zeshia "$cluster $new_midfreq" "/proc/ppm/policy/hard_userlimit_max_cpu_freq"
+			zeshia "$cluster $cpu_minfreq" "/proc/ppm/policy/hard_userlimit_min_cpu_freq"
+		    policy_name=$(basename "$path")
+			dlog "Set $policy_name maxfreq=$new_midfreq minfreq=$cpu_minfreq"
+			continue
+		}
 		applyppmnfreqsets "$cpu_maxfreq" "$path/scaling_max_freq"
 		applyppmnfreqsets "$new_midfreq" "$path/scaling_min_freq"
 		chmod -f 444 /sys/devices/system/cpu/cpufreq/policy*/scaling_*_freq
@@ -1059,7 +1092,11 @@ performance_profile() {
 	else
 	    setgamefreq
 	fi
-	dlog "Set CPU freq to max available Frequencies"
+	if [ "$LITEMODE" -eq 0 ]; then	
+	    dlog "Set CPU freq to max available Frequencies"
+	else
+	    dlog "Set CPU freq to normal Frequencies"
+	fi
 	
     # Power level settings
 	for pl in /sys/devices/system/cpu/perf; do
