@@ -28,6 +28,12 @@ LOGFILE="$CONFIGPATH/debug/AZenith.log"
 list_logger="logd traced statsd tcpdump cnss_diag subsystem_ramdump charge_logger wlan_logging"
 curprofile=$(<"$CONFIGPATH/API/current_profile")
 POLICIES=$(ls /sys/devices/system/cpu/cpufreq | grep policy)
+BYPASSPATHLIST="
+    MTK_BYPASS_CHARGER:/sys/devices/platform/charger/bypass_charger
+    MTK_CURRENT_CMD:/proc/mtk_battery_cmd/current_cmd
+    TRAN_AICHG:/sys/devices/platform/charger/tran_aichg_disable_charger
+    MTK_DISABLE_CHARGER:/sys/devices/platform/mt-battery/disable_charger
+"        
 
 # Properties
 LIMITER=$(getprop persist.sys.azenithconf.freqoffset | sed -e 's/Disabled/100/' -e 's/%//g')
@@ -45,6 +51,8 @@ DISTRACE_STATE="$(getprop persist.sys.azenithconf.disabletrace)"
 CLEARAPPS="$(getprop persist.sys.azenithconf.clearbg)"
 LITEMODE="$(getprop persist.sys.azenithconf.cpulimit)"
 VSYNCVALUE="$(getprop persist.sys.azenithconf.vsync)"
+BYPASSPROPS="persist.sys.azenithconf.bypasspath"
+BYPASSPATH="$(getprop persist.sys.azenithconf.bypasspath)"
 
 # Logging Functions
 AZLog() {
@@ -2023,9 +2031,38 @@ EOF
             start "$logger" 2>/dev/null
         done
     fi
-        
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    # INITIALIZE BYPASS CHARGING PATH 
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    if [ -z "$BYPASSPATH" ]; then    
+    supported=0
+        while IFS=":" read -r name path; do
+            [ -z "$name" ] && continue
+    
+            name="${name//[[:space:]]/}"
+            path="${path//[[:space:]]/}"
+    
+            if [ -e "$path" ]; then
+                setprop "$BYPASSPROPS" "$name"
+                dlog "Detected Bypass Charging path: $name"
+                supported=1
+                break
+            fi
+        done <<< "$BYPASSPATHLIST"
+    
+        if [ "$supported" -eq 0 ]; then
+            dlog "Bypass Charging unsupported: no valid path found"
+            setprop "$BYPASSPROPS" "UNSUPPORTED"
+        fi
+    else
+        dlog "Bypass Charging path already set: $BYPASSPATH"
+    fi
+       
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #  
     # APPLY DISABLE VSYNC IF AVAILABLE
 	sys.azenith-utilityconf disablevsync $VSYNCVALUE
+	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 	
 	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # INITIALIZING COMPLETE

@@ -26,6 +26,24 @@ LOGFILE="$CONFIGPATH/debug/AZenith.log"
 
 # Properties
 DEBUGMODE="$(getprop persist.sys.azenith.debugmode)"
+BYPASSPATH="$(getprop persist.sys.azenithconf.bypasspath)"
+
+# Bypass Charging Path
+MTK_BYPASS_CHARGER="/sys/devices/platform/charger/bypass_charger"
+MTK_BYPASS_CHARGER_ON="1"
+MTK_BYPASS_CHARGER_OFF="0"
+
+MTK_CURRENT_CMD="/proc/mtk_battery_cmd/current_cmd"
+MTK_CURRENT_CMD_ON="0 1"
+MTK_CURRENT_CMD_OFF="0 0"
+
+TRAN_AICHG="/sys/devices/platform/charger/tran_aichg_disable_charger"
+TRAN_AICHG_ON="1"
+TRAN_AICHG_OFF="0"
+
+MTK_DISABLE_CHARGER="/sys/devices/platform/mt-battery/disable_charger"
+MTK_DISABLE_CHARGER_ON="1"
+MTK_DISABLE_CHARGER_OFF="0"
 
 # Logging Functions
 AZLog() {
@@ -157,6 +175,19 @@ disablevsync() {
     esac
 }
 
+# Bypass Charge
+enableBypass() {
+    key="$BYPASSPATH"
+    val="${key}_ON"
+    zeshia "$(eval echo \${$val})" "$(eval echo \${$key})"
+}
+
+disableBypass() {
+    key="$BYPASSPATH"
+    val="${key}_OFF"
+    zeshia "$(eval echo \${$val})" "$(eval echo \${$key})"
+}
+
 saveLog() {
     log_file="/sdcard/AZenithLog_$(date +"%Y-%m-%d_%H-%M").txt"
     echo "$log_file"
@@ -181,36 +212,6 @@ saveLog() {
         echo
         cat /data/adb/.config/AZenith/debug/AZenith.log 2>/dev/null
     } >"$log_file"
-}
-
-# Bypass Charge
-enableBypass() {
-	applypath() {
-		if [ -e "$2" ]; then
-			zeshia "$1" "$2"
-			return 0
-		fi
-		return 1
-	}
-	applypath "1" "/sys/devices/platform/charger/bypass_charger" && return
-	applypath "0 1" "/proc/mtk_battery_cmd/current_cmd" && return
-	applypath "1" "/sys/devices/platform/charger/tran_aichg_disable_charger" && return
-	applypath "1" "/sys/devices/platform/mt-battery/disable_charger" && return
-}
-
-disableBypass() {
-	# Disable Bypass Charge
-	applypath() {
-		if [ -e "$2" ]; then
-			zeshia "$1" "$2"
-			return 0
-		fi
-		return 1
-	}
-	applypath "0" "/sys/devices/platform/charger/bypass_charger" && return
-	applypath "0 0" "/proc/mtk_battery_cmd/current_cmd" && return
-	applypath "0" "/sys/devices/platform/charger/tran_aichg_disable_charger" && return
-	applypath "0" "/sys/devices/platform/mt-battery/disable_charger" && return
 }
 
 $@
