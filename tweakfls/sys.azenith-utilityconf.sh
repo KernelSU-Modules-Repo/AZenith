@@ -18,101 +18,77 @@
 
 # shellcheck disable=SC2013
 
+# Path
 MODDIR=${0%/*}
-logpath="/data/adb/.config/AZenith/debug/AZenithVerbose.log"
-logpathdm="/data/adb/.config/AZenith/debug/AZenith.log"
+CONFIGPATH="/data/adb/.config/AZenith"
+LOGFILEV="$CONFIGPATH/debug/AZenithVerbose.log"
+LOGFILE="$CONFIGPATH/debug/AZenith.log"
 
+# Properties
+DEBUGMODE="$(getprop persist.sys.azenith.debugmode)"
+
+# Logging Functions
 AZLog() {
-	if [ "$(getprop persist.sys.azenith.debugmode)" = "true" ]; then
-		local timestamp message log_tag
-		timestamp=$(date +"%Y-%m-%d %H:%M:%S.%3N")
-		message="$1"
-		log_tag="AZenith"
-		echo "$timestamp I $log_tag: $message" >>"$logpath"
-		log -t "$log_tag" "$message"
-	fi
+    if [ "$DEBUGMODE" = "true" ]; then
+        local timestamp message log_tag
+        timestamp=$(date +"%Y-%m-%d %H:%M:%S.%3N")
+        message="$1"
+        log_tag="AZenith"
+        echo "$timestamp I $log_tag: $message" >>"$LOGFILEV"
+        log -t "$log_tag" "$message"
+    fi
 }
-
 dlog() {
 	local message log_tag
 	message="$1"
 	timestamp=$(date +"%Y-%m-%d %H:%M:%S.%3N")
 	log_tag="AZenith_Utility"
-	echo "$timestamp I $log_tag: $message" >>"$logpathdm"
+	echo "$timestamp I $log_tag: $message" >>"$LOGFILE"
     log -t "$log_tag" "$message"
 }
 
+# Apply Functions
 zeshia() {
-	local value="$1"
-	local path="$2"
-	local pathname
-	pathname="$(echo "$path" | awk -F'/' '{print $(NF-1)"/"$NF}')"
+    local value="$1"
+    local path="$2"
+    local lock="${3:-true}"
+    local pathname
 
-	if [ ! -e "$path" ]; then
-		AZLog "File /$pathname not found, skipping..."
-		return
-	fi
+    pathname="$(echo "$path" | awk -F'/' '{print $(NF-1)"/"$NF}')"
 
-	chmod 644 "$path" 2>/dev/null
+    if [ ! -e "$path" ]; then
+        AZLog "File /$pathname not found, skipping..."
+        return
+    fi
 
-	if ! echo "$value" >"$path" 2>/dev/null; then
-		AZLog "Cannot write to /$pathname (permission denied)"
-		chmod 444 "$path" 2>/dev/null
-		return
-	fi
+    chmod 644 "$path" 2>/dev/null
 
-	local current
-	current="$(cat "$path" 2>/dev/null)"
-	if [ "$current" = "$value" ]; then
-		AZLog "Set /$pathname to $value"
-	else
-		echo "$value" >"$path" 2>/dev/null || true
-		current="$(cat "$path" 2>/dev/null)"
-		if [ "$current" = "$value" ]; then
-			AZLog "Set /$pathname to $value (after retry)"
-		else
-			AZLog "Failed to set /$pathname to $value"
-		fi
-	fi
+    if ! echo "$value" >"$path" 2>/dev/null; then
+        AZLog "Cannot write to /$pathname (permission denied)"
+        [ "$lock" = "true" ] && chmod 444 "$path" 2>/dev/null
+        return
+    fi
 
-	chmod 444 "$path" 2>/dev/null
+    local current
+    current="$(cat "$path" 2>/dev/null)"
+
+    if [ "$current" = "$value" ]; then
+        AZLog "Set /$pathname to $value"
+    else
+        echo "$value" >"$path" 2>/dev/null
+        current="$(cat "$path" 2>/dev/null)"
+
+        if [ "$current" = "$value" ]; then
+            AZLog "Set /$pathname to $value (after retry)"
+        else
+            AZLog "Failed to set /$pathname to $value"
+        fi
+    fi
+
+    [ "$lock" = "true" ] && chmod 444 "$path" 2>/dev/null
 }
 
-zeshiax() {
-	local value="$1"
-	local path="$2"
-	local pathname
-	pathname="$(echo "$path" | awk -F'/' '{print $(NF-1)"/"$NF}')"
-
-	if [ ! -e "$path" ]; then
-		AZLog "File /$pathname not found, skipping..."
-		return
-	fi
-
-	chmod 644 "$path" 2>/dev/null
-
-	if ! echo "$value" >"$path" 2>/dev/null; then
-		AZLog "Cannot write to /$pathname (permission denied)"
-		chmod 444 "$path" 2>/dev/null
-		return
-	fi
-
-	local current
-	current="$(cat "$path" 2>/dev/null)"
-	if [ "$current" = "$value" ]; then
-		AZLog "Set /$pathname to $value"
-	else
-		echo "$value" >"$path" 2>/dev/null || true
-		current="$(cat "$path" 2>/dev/null)"
-		if [ "$current" = "$value" ]; then
-			AZLog "Set /$pathname to $value (after retry)"
-		else
-			AZLog "Failed to set /$pathname to $value"
-		fi
-	fi
-
-}
-
+# Main functions
 setsgov() {
 	chmod 644 /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 	echo "$1" | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
@@ -134,7 +110,7 @@ setsIO() {
 setthermalcore() {
     local state="$1"
     if [ "$state" -eq 1 ]; then
-        /data/adb/modules/AZenith/system/bin/sys.azenith-rianixiathermalcorev4 &
+        sys.azenith-rianixiathermalcorev4 &
         sleep 1
         local pid
         pid="$(pgrep -f sys.azenith-rianixiathermalcorev4)"
@@ -158,46 +134,53 @@ FSTrim() {
 			AZLog "Skipped (not mounted): $mount"
 		fi
 	done
+	dlog "Trimmed unused blocks"
 }
 
 disablevsync() {
-	case "$1" in
-	60hz) service call SurfaceFlinger 1035 i32 2 ;;
-	90hz) service call SurfaceFlinger 1035 i32 1 ;;
-	120hz) service call SurfaceFlinger 1035 i32 0 ;;
-	Disabled) service call SurfaceFlinger 1035 i32 2 ;;
-	esac
+    case "$1" in
+        60hz)
+            service call SurfaceFlinger 1035 i32 2
+            dlog "Applied 60hz DisableVsync"
+        ;;
+        90hz)
+            service call SurfaceFlinger 1035 i32 1
+            dlog "Applied 90hz DisableVsync"
+        ;;
+        120hz)
+            service call SurfaceFlinger 1035 i32 0
+            dlog "Applied 120hz DisableVsync"
+        ;;
+        Disabled)
+            echo "disabled"
+        ;;
+    esac
 }
 
-vsync_value="$(getprop persist.sys.azenithconf.vsync)"
-case "$vsync_value" in
-60hz | 90hz | 120hz)
-	disablevsync "$vsync_value"
-	;;
-Disabled) ;;
-esac
-
 saveLog() {
-	log_file="/sdcard/AZenithLog$(date +"%Y-%m-%d_%H_%M").txt"
-	echo "$log_file"
+    log_file="/sdcard/AZenithLog_$(date +"%Y-%m-%d_%H-%M").txt"
+    echo "$log_file"
+    module_ver=$(awk -F'=' '/version=/ {print $2}' /data/adb/modules/AZenith/module.prop 2>/dev/null)
+    android_sdk=$(getprop ro.build.version.sdk)
+    kernel_info=$(uname -r -m)
+    fingerprint=$(getprop ro.build.fingerprint)
+    device=$(getprop sys.azenith.device)
+    chipset=$(getprop sys.azenith.soc)
 
-	module_ver=$(awk -F'=' '/version=/ {print $2}' /data/adb/modules/AZenith/module.prop)
-	android_sdk=$(getprop ro.build.version.sdk)
-	kernel_info=$(uname -r -m)
-	fingerprint=$(getprop ro.build.fingerprint)
-
-	cat <<EOF >"$log_file"
-##########################################
-             AZenith Process Log
-    
-    Module: $module_ver
-    Android: $android_sdk
-    Kernel: $kernel_info
-    Fingerprint: $fingerprint
-##########################################
-
-$(</data/adb/.config/AZenith/debug/AZenith.log)
-EOF
+    {
+        echo "##########################################"
+        echo "             AZenith Process Log"
+        echo
+        echo "    Module: $module_ver"
+        echo "    Android: $android_sdk"
+        echo "    Kernel: $kernel_info"
+        echo "    Fingerprint: $fingerprint"
+        echo "    Device: $device"
+        echo "    Chipset: $chipset"
+        echo "##########################################"
+        echo
+        cat /data/adb/.config/AZenith/debug/AZenith.log 2>/dev/null
+    } >"$log_file"
 }
 
 # Bypass Charge
