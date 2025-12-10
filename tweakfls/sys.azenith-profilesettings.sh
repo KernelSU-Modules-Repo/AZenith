@@ -53,6 +53,7 @@ LITEMODE="$(getprop persist.sys.azenithconf.cpulimit)"
 VSYNCVALUE="$(getprop persist.sys.azenithconf.vsync)"
 BYPASSPROPS="persist.sys.azenithconf.bypasspath"
 BYPASSPATH="$(getprop persist.sys.azenithconf.bypasspath)"
+WALT_STATE="$(getprop persist.sys.azenithconf.walttunes)"
 
 # Logging Functions
 AZLog() {
@@ -258,7 +259,7 @@ setfreqppm() {
 }
 
 clear_background_apps() {
-    invisible_pkgs=$(dumpsys window displays | awk '/Window #/ {pkg=$NF} /mIsVisible=/ && $2=="false" {print pkg}' | sed 's/}//g' | sort -u)    
+    invisible_pkgs=$(dumpsys window displays | grep "Task{" | grep "visible=false" | sed -n 's/.*A=[0-9]*:\([^ ]*\).*/\1/p' | sort -u)    
     exclude="(com.android.systemui|com.android.settings|android|system)"
     
     for pkg in $invisible_pkgs; do
@@ -1639,6 +1640,91 @@ initialize() {
 	fi
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    # WALT TUNING
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    if [ "$WALT_STATE" -eq 1 ]; then
+        dlog "Applying WALT governor tuning"
+
+        WALT_UP_RATE=8000
+        WALT_DOWN_RATE=12000
+        WALT_HISPEED_LOAD=92
+        WALT_TOP_FREQ_COUNT=6
+        WALT_TARGET_START=95
+        WALT_TARGET_STEP=8
+        WALT_FALLBACK_HISPEED_FREQ=0
+        WALT_FALLBACK_RTG_BOOST_FREQ=0
+        setwalt() {
+            local policy_path="$1"
+            local walt_path="$policy_path/walt"
+
+            # Check if path is available 
+            if [ ! -d "$walt_path" ]; then
+                AZLog "Skipped: $policy_path (WALT not available)"
+                return
+            fi
+
+            # Read available frequencies
+            local available_freqs
+            available_freqs=$(cat "$policy_path/scaling_available_frequencies" 2>/dev/null)
+
+            if [ -z "$available_freqs" ]; then
+                AZLog "Skipped: No available frequencies for $policy_path"
+                return
+            fi
+
+            # Select top N frequencies
+            local selected_freqs
+            selected_freqs=$(echo "$available_freqs" | tr ' ' '\n' | sort -rn | head -n "$WALT_TOP_FREQ_COUNT" | tr '\n' ' ' | sed 's/ $//')
+
+            [ -z "$selected_freqs" ] && return
+
+            # Highest & second highest
+            local highest second
+            highest=$(echo "$selected_freqs" | awk '{print $1}')
+            second=$(echo "$selected_freqs" | awk '{print $2}')
+            [ -z "$second" ] && second="$highest"
+
+            # Generate target_loads
+            local num_freqs
+            num_freqs=$(echo "$selected_freqs" | wc -w)
+
+            local tloads=""
+            local cur="$WALT_TARGET_START"
+            local i=0
+
+            while [ $i -lt $num_freqs ]; do
+                tloads="$tloads $cur"
+                cur=$((cur - WALT_TARGET_STEP))
+                [ $cur -lt 10 ] && cur=10
+                i=$((i + 1))
+            done
+
+            tloads=$(echo "$tloads" | sed 's/^ //')
+
+            # Final tuned values
+            local hispeed_freq_val="$second"
+            local rtg_boost_freq_val="$highest"
+
+            [ -z "$hispeed_freq_val" ] && hispeed_freq_val="$WALT_FALLBACK_HISPEED_FREQ"
+            [ -z "$rtg_boost_freq_val" ] && rtg_boost_freq_val="$WALT_FALLBACK_RTG_BOOST_FREQ"
+
+            # Apply safely
+            [ -f "$walt_path/hispeed_load" ] && zeshia "$WALT_HISPEED_LOAD" "$walt_path/hispeed_load"
+            [ -f "$walt_path/hispeed_freq" ] && zeshia "$hispeed_freq_val" "$walt_path/hispeed_freq"
+            [ -f "$walt_path/rtg_boost_freq" ] && zeshia "$rtg_boost_freq_val" "$walt_path/rtg_boost_freq"
+            [ -f "$walt_path/target_loads" ] && zeshia "$tloads" "$walt_path/target_loads"
+            [ -f "$walt_path/efficient_freq" ] && zeshia "$selected_freqs" "$walt_path/efficient_freq"
+            [ -f "$walt_path/up_rate_limit_us" ] && zeshia "$WALT_UP_RATE" "$walt_path/up_rate_limit_us"
+            [ -f "$walt_path/down_rate_limit_us" ] && zeshia "$WALT_DOWN_RATE" "$walt_path/down_rate_limit_us"
+
+            dlog "WALT Tuning Applied on $(basename "$policy_path")"
+        }
+        for policy in /sys/devices/system/cpu/cpufreq/policy*; do
+            setwalt "$policy"
+        done
+    fi
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # FPS GO AND GED PARAMETER
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 	if [ "$FPSGED_STATE" -eq 1 ]; then
@@ -2056,7 +2142,7 @@ EOF
             setprop "$BYPASSPROPS" "UNSUPPORTED"
         fi
     else
-        dlog "Bypass Charging path already set: $BYPASSPATH"
+        dlog "Bypass Charging path set: $BYPASSPATH"
     fi
        
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #  
