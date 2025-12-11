@@ -24,17 +24,18 @@ void print_help() {
     printf("AZenith Daemon CLI by @Zexshia\n");
     printf("Usage:\n");
     printf("  sys.azenith-service --run\n");
-    printf("      Start daemon\n\n");
+    printf("      Start AZenith daemon\n\n");
 
     printf("  sys.azenith-service --profile <1|2|3>\n");
-    printf("      Apply manual profile\n");
+    printf("      Apply AZenith Profile manually\n");
     printf("      1 = Performance\n");
     printf("      2 = Balanced\n");
     printf("      3 = Eco Mode\n\n");
 
     printf("  sys.azenith-service --log <TAG> <LEVEL> <MESSAGE>\n");
     printf("      Write log through AZenith logging service\n");
-    printf("      LEVEL = 0..4\n\n");
+    printf("      Usage: --log <TAG> <LEVEL> <MESSAGE>\n");
+    printf("      Levels: 0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=FATAL\n");
 }
 
 int handle_profile(int argc, char** argv) {
@@ -54,16 +55,23 @@ int handle_profile(int argc, char** argv) {
     const char* profile = argv[2];
 
     if (!strcmp(profile, "1")) {
+        log_zenith(LOG_INFO, "Applying Performance Profile via execute");
+        toast("Applying Performance Profile");
         run_profiler(PERFORMANCE_PROFILE);
-        printf("Performance profile applied.\n");
+        printf("Applying Performance Profile\n");        
     } else if (!strcmp(profile, "2")) {
+        log_zenith(LOG_INFO, "Applying Balanced Profile via execute");
+        toast("Applying Balanced Profile");
         run_profiler(BALANCED_PROFILE);
-        printf("Balanced profile applied.\n");
+        printf("Applying Balanced Profile\n");
     } else if (!strcmp(profile, "3")) {
+        log_zenith(LOG_INFO, "Applying Eco Mode via execute");
+        toast("Applying Eco Mode");
         run_profiler(ECO_MODE);
-        printf("Eco Mode applied.\n");
+        cur_mode = ECO_MODE;
+        printf("Applying Eco Mode\n");
     } else {
-        fprintf(stderr, "Invalid profile number.\n");
+        fprintf(stderr, "Invalid profiles.\n");
         return 1;
     }
 
@@ -73,6 +81,7 @@ int handle_profile(int argc, char** argv) {
 int handle_log(int argc, char** argv) {
     if (argc < 5) {
         fprintf(stderr, "Usage: --log <TAG> <LEVEL> <MESSAGE>\n");
+        fprintf(stderr, "Levels: 0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=FATAL\n");
         return 1;
     }
 
