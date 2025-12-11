@@ -80,7 +80,7 @@ extern pid_t game_pid;
 void print_help();
 int handle_profile(int argc, char** argv);
 int handle_log(int argc, char** argv);
-int handle_vlog(int argc, char** argv);
+int handle_verboselog(int argc, char** argv);
 
 // Misc Utilities
 extern void GamePreload(const char* package);
