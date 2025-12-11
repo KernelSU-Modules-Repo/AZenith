@@ -75,6 +75,11 @@ extern pid_t game_pid;
  * are in the wrong place.
  */
 
+// CLI
+void print_help();
+int handle_profile(int argc, char** argv);
+int handle_log(int argc, char** argv);
+
 // Misc Utilities
 extern void GamePreload(const char* package);
 void sighandler(const int signal);
