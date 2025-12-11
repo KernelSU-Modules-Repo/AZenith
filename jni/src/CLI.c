@@ -27,37 +27,33 @@
  ***********************************************************************************/
 void print_help() {
     printf(
-        "AZenith Daemon CLI  (by @Zexshia)\n"
-        "---------------------------------------\n"
-        "Usage: sys.azenith-service <command> [options]\n\n"
-
-        "Commands:\n"
-        "  --run\n"
-        "      Start the AZenith daemon.\n\n"
-
-        "  --profile <1|2|3>\n"
-        "      Apply a preset AZenith performance profile.\n"
-        "        1 : Performance\n"
-        "        2 : Balanced\n"
-        "        3 : Eco Mode\n\n"
-
-        "  --log <TAG> <LEVEL> <MESSAGE>\n"
-        "      Write a log entry via the AZenith logging service.\n"
-        "      LEVEL values:\n"
-        "        0 : DEBUG\n"
-        "        1 : INFO\n"
-        "        2 : WARN\n"
-        "        3 : ERROR\n"
-        "        4 : FATAL\n\n"
-
-        "  --help\n"
-        "      Show this help message.\n\n"
-
+        "AZenith Daemon CLI (by @Zexshia)\n"
+        "\n"
+        "Usage: sys.azenith-service [options]\n"
+        "\n"
+        "Options:\n"
+        "  -r, --run                                Start the AZenith daemon\n"
+        "\n"
+        "  -p, --profile <1|2|3>                    Apply performance profile\n"
+        "                                           1 : Performance\n"
+        "                                           2 : Balanced\n"
+        "                                           3 : Eco Mode\n"
+        "\n"
+        "  -l, --log <TAG> <LEVEL> <MSG>     Write a log entry via logging service\n"
+        "                                           LEVEL values:\n"
+        "                                           0 : DEBUG\n"
+        "                                           1 : INFO\n"
+        "                                           2 : WARN\n"
+        "                                           3 : ERROR\n"
+        "                                           4 : FATAL\n"
+        "\n"
+        "  -h, --help                               Display this help message and exit\n"
+        "\n"
         "Examples:\n"
         "  sys.azenith-service --run\n"
-        "  sys.azenith-service --profile 2\n"
-        "  sys.azenith-service --log ServiceInit 1 \"Daemon started\"\n"
-        "  sys.azenith-service --help\n"
+        "  sys.azenith-service -p 2\n"
+        "  sys.azenith-service -l Init 1 \"Daemon started\"\n"
+        "  sys.azenith-service -h\n"
     );
 }
 
