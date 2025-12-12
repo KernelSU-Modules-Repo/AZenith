@@ -69,6 +69,13 @@ int main(int argc, char* argv[]) {
             notify("Please remove your stupid kill logger module.");
             exit(EXIT_FAILURE);
         }
+        
+        // Handle missing Gamelist
+        if (access(GAMELIST, F_OK) != 0) {
+            fprintf(stderr, "\033[31mFATAL ERROR:\033[0m Unable to access Gamelist, either has been removed or moved.\n");
+            log_encore(LOG_FATAL, "Critical file not found (%s)", GAMELIST);
+            exit(EXIT_FAILURE);
+        }
 
         // Check Module Integrity
         is_kanged();

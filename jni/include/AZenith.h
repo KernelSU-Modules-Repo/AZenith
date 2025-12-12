@@ -109,6 +109,7 @@ int systemv(const char* format, ...);
 // Utilities
 int check_running_state(void);
 int write2file(const char* filename, const bool append, const bool use_flock, const char* data, ...);
+int is_file_empty(const char *filename);
 
 // system
 void log_preload(LogLevel level, const char* message, ...);
