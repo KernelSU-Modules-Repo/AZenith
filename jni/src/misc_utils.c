@@ -178,7 +178,7 @@ void check_module_version(void) {
     if (ret != 0) [[clang::unlikely]] {
         log_zenith(LOG_FATAL,
                    "AZenith version mismatch with daemon version! please reinstall the module!");
-        notify("AZenith version mismatch with daemon version! please reinstall the module!");
+        notify("AZenith version mismatch, please reinstall!");
         systemv("setprop persist.sys.azenith.service \"\"");
         systemv("setprop persist.sys.azenith.state stopped");
         exit(EXIT_FAILURE);

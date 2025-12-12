@@ -55,6 +55,10 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         
+        systemv("rm -f /data/adb/.config/AZenith/debug/AZenith.log");
+        systemv("rm -f /data/adb/.config/AZenith/debug/AZenithVerbose.log");
+        systemv("rm -f /data/adb/.config/AZenith/preload/AZenithPR.log");
+        
         // Sanity check for dumpsys
         if (access("/system/bin/dumpsys", F_OK) != 0) {
             fprintf(stderr, "\033[31mFATAL ERROR:\033[0m /system/bin/dumpsys: inaccessible or not found\n");
@@ -94,11 +98,7 @@ int main(int argc, char* argv[]) {
         bool need_profile_checkup = false;
         MLBBState mlbb_is_running = MLBB_NOT_RUNNING;
         static bool is_initialize_complete = false;
-        ProfileMode cur_mode = PERFCOMMON;
-
-        systemv("rm -f /data/adb/.config/AZenith/debug/AZenith.log");
-        systemv("rm -f /data/adb/.config/AZenith/debug/AZenithVerbose.log");
-        systemv("rm -f /data/adb/.config/AZenith/preload/AZenithPR.log");
+        ProfileMode cur_mode = PERFCOMMON;        
         
         log_zenith(LOG_INFO, "Daemon started as PID %d", getpid());
         setspid();
