@@ -58,14 +58,14 @@ int main(int argc, char* argv[]) {
         // Sanity check for dumpsys
         if (access("/system/bin/dumpsys", F_OK) != 0) {
             fprintf(stderr, "\033[31mFATAL ERROR:\033[0m /system/bin/dumpsys: inaccessible or not found\n");
-            log_encore(LOG_FATAL, "/system/bin/dumpsys: inaccessible or not found");
+            log_zenith(LOG_FATAL, "/system/bin/dumpsys: inaccessible or not found");
             notify("Something wrong happening in the daemon, please check module log.");
             exit(EXIT_FAILURE);
         }
     
         if (is_file_empty("/system/bin/dumpsys") == 1) {
             fprintf(stderr, "\033[31mFATAL ERROR:\033[0m /system/bin/dumpsys was tampered by kill logger module.\n");
-            log_encore(LOG_FATAL, "/system/bin/dumpsys was tampered by kill logger module");
+            log_zenith(LOG_FATAL, "/system/bin/dumpsys was tampered by kill logger module");
             notify("Please remove your stupid kill logger module.");
             exit(EXIT_FAILURE);
         }
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
         // Handle missing Gamelist
         if (access(GAMELIST, F_OK) != 0) {
             fprintf(stderr, "\033[31mFATAL ERROR:\033[0m Unable to access Gamelist, either has been removed or moved.\n");
-            log_encore(LOG_FATAL, "Critical file not found (%s)", GAMELIST);
+            log_zenith(LOG_FATAL, "Critical file not found (%s)", GAMELIST);
             exit(EXIT_FAILURE);
         }
 
