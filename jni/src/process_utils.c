@@ -106,17 +106,12 @@ int uidof(pid_t pid) {
  * Description        : Sets the maximum CPU nice priority and I/O priority of a
  *                      given process.
  ***********************************************************************************/
-void set_priority(const pid_t pid) {
-    char val[PROP_VALUE_MAX] = {0};
-    if (__system_property_get("persist.sys.azenithconf.iosched", val) > 0) {
-        if (val[0] == '1') {
-            log_zenith(LOG_DEBUG, "Applying priority settings for PID %d", pid);
+void set_priority(const pid_t pid) {    
+    log_zenith(LOG_DEBUG, "Applying priority settings for PID %d", pid);
 
-            if (setpriority(PRIO_PROCESS, pid, -20) == -1)
-                log_zenith(LOG_ERROR, "Unable to set nice priority for %d", pid);
+    if (setpriority(PRIO_PROCESS, pid, -20) == -1)
+        log_zenith(LOG_ERROR, "Unable to set nice priority for %d", pid);
 
-            if (syscall(SYS_ioprio_set, 1, pid, (1 << 13) | 0) == -1)
-                log_zenith(LOG_ERROR, "Unable to set IO priority for %d", pid);
-        }
-    }
+    if (syscall(SYS_ioprio_set, 1, pid, (1 << 13) | 0) == -1)
+        log_zenith(LOG_ERROR, "Unable to set IO priority for %d", pid);
 }

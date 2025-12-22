@@ -15,6 +15,7 @@
 #include <time.h>
 #include <unistd.h>
 
+
 #define TASK_INTERVAL_SEC (12 * 60 * 60)
 #define LOOP_INTERVAL_MS 700
 #define LOOP_INTERVAL_SEC 2
@@ -33,11 +34,13 @@
 #define LOG_FILE_PRELOAD "/data/adb/.config/AZenith/preload/AZenithPR.log"
 #define PROFILE_MODE "/data/adb/.config/AZenith/API/current_profile"
 #define GAME_INFO "/data/adb/.config/AZenith/API/gameinfo"
-#define GAMELIST "/data/adb/.config/AZenith/gamelist/gamelist.txt"
+#define GAMELIST "/data/adb/.config/AZenith/gamelist/azenithApplist.json"
 #define MODULE_PROP "/data/adb/modules/AZenith/module.prop"
 #define MODULE_UPDATE "/data/adb/modules/AZenith/update"
 #define MODULE_VERSION ".placeholder"
-
+#define IS_TRUE(v)    ((v) && strcmp((v), "true") == 0)
+#define IS_FALSE(v)   ((v) && strcmp((v), "false") == 0)
+#define IS_DEFAULT(v) (!(v) || strcmp((v), "default") == 0)
 #define MY_PATH                                                                                                                    \
     "PATH=/system/bin:/system/xbin:/data/adb/ap/bin:/data/adb/ksu/bin:/data/adb/magisk:/debug_ramdisk:/sbin:/sbin/su:/su/bin:/su/" \
     "xbin:/data/data/com.termux/files/usr/bin"
@@ -50,6 +53,14 @@
 #define IS_LOW_POWER(state) (strcmp(state, "true") == 0 || strcmp(state, "1") == 0)
 
 // Basic C knowledge: enum starts with 0
+typedef struct {
+    char perf_lite_mode[16];
+    char dnd_on_gaming[16];
+    char app_priority[16];
+    char game_preload[16];
+    char refresh_rate[16];
+    char renderer[16];
+} GameOptions;
 
 typedef enum : char {
     LOG_DEBUG,
@@ -104,6 +115,7 @@ bool return_false(void);
 void runthermalcore(void);
 void check_module_version(void);
 void runtask(void);
+int get_current_refresh_rate(void);
 
 // Shell and Command execution
 char* execute_command(const char* format, ...);
@@ -136,9 +148,11 @@ MLBBState handle_mlbb(const char* gamestart);
 // Profiler
 extern bool (*get_screenstate)(void);
 extern bool (*get_low_power_state)(void);
-char* get_gamestart(void);
+char* get_gamestart(GameOptions* options);
 bool get_screenstate_normal(void);
 bool get_low_power_state_normal(void);
 void run_profiler(const int profile);
+char* skip_space(char* p);
+void extract_string_value(char* dest, const char* start, size_t max_len);
 
 #endif

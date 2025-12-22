@@ -52,10 +52,9 @@ void run_profiler(const int profile) {
  *                      listed in Gamelist.
  * Note               : Caller is responsible for freeing the returned string.
  ***********************************************************************************/
-char* get_gamestart(void) {
+char* get_gamestart(GameOptions* options) {
     char* pkg = get_visible_package();
-    if (!pkg)
-        return NULL;
+    if (!pkg) return NULL;
 
     FILE* fp = fopen(GAMELIST, "r");
     if (!fp) {
@@ -63,27 +62,67 @@ char* get_gamestart(void) {
         return NULL;
     }
 
-    char buf[32768];
-    size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
-    fclose(fp);
+    fseek(fp, 0, SEEK_END);
+    long size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
 
-    if (n == 0) {
+    if (size <= 0) {
+        fclose(fp);
         free(pkg);
         return NULL;
     }
 
-    buf[n] = '\0';
-
-    char* token = strtok(buf, "|");
-    while (token) {
-        if (strcmp(token, pkg) == 0) {
-            return pkg;
-        }
-        token = strtok(NULL, "|");
+    char* buf = malloc(size + 1);
+    if (!buf) {
+        fclose(fp);
+        free(pkg);
+        return NULL;
     }
-    
+
+    if (fread(buf, 1, size, fp) != (size_t)size) {
+        fclose(fp);
+        free(buf);
+        free(pkg);
+        return NULL;
+    }
+    fclose(fp);
+    buf[size] = '\0';
+
+    // Find package key in JSON
+    char* entry = strstr(buf, pkg);
+    if (!entry) {
+        free(buf);
+        free(pkg);
+        return NULL;
+    }
+
+    // Fill options
+    if (options) {
+        char* p;
+
+        p = strstr(entry, "\"perf_lite_mode\":");
+        extract_string_value(options->perf_lite_mode, p, sizeof(options->perf_lite_mode));
+
+        p = strstr(entry, "\"dnd_on_gaming\":");
+        extract_string_value(options->dnd_on_gaming, p, sizeof(options->dnd_on_gaming));
+
+        p = strstr(entry, "\"app_priority\":");
+        extract_string_value(options->app_priority, p, sizeof(options->app_priority));
+
+        p = strstr(entry, "\"game_preload\":");
+        extract_string_value(options->game_preload, p, sizeof(options->game_preload));
+
+        p = strstr(entry, "\"refresh_rate\":");
+        extract_string_value(options->refresh_rate, p, sizeof(options->refresh_rate));
+
+        p = strstr(entry, "\"renderer\":");
+        extract_string_value(options->renderer, p, sizeof(options->renderer));
+    }
+
+    free(buf);
+    char* ret_pkg = strdup(pkg);
     free(pkg);
-    return NULL;
+    return ret_pkg;
 }
 
 /***********************************************************************************

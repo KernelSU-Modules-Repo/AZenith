@@ -302,3 +302,61 @@ void runtask(void) {
         systemv("sys.azenith-utilityconf FSTrim");
     }
 }
+
+char* skip_space(char* p) {
+    while (*p && isspace(*p)) p++;
+    return p;
+}
+
+void extract_string_value(char* dest, const char* key_pos, size_t max_len) {
+    if (!key_pos) {
+        strncpy(dest, "default", max_len-1);
+        dest[max_len-1] = '\0';
+        return;
+    }
+
+    const char* colon = strchr(key_pos, ':');
+    if (!colon) {
+        strncpy(dest, "default", max_len-1);
+        dest[max_len-1] = '\0';
+        return;
+    }
+
+    const char* start = colon + 1;
+    while (*start == ' ' || *start == '\t') start++;
+
+    if (*start == '\"') start++;
+
+    const char* end = strchr(start, '\"');
+    if (!end) {
+        strncpy(dest, "default", max_len-1);
+        dest[max_len-1] = '\0';
+        return;
+    }
+
+    size_t len = end - start;
+    if (len >= max_len) len = max_len - 1;
+    strncpy(dest, start, len);
+    dest[len] = '\0';
+}
+
+int get_current_refresh_rate(void) {
+    FILE *fp = popen(
+        "cmd display get-displays | "
+        "grep -oE \"renderFrameRate [0-9.]+\" | "
+        "awk '{print int($2+0.5)}'",
+        "r"
+    );
+
+    if (!fp)
+        return -1;
+
+    char buf[32] = {0};
+    if (!fgets(buf, sizeof(buf), fp)) {
+        pclose(fp);
+        return -1;
+    }
+
+    pclose(fp);
+    return atoi(buf);
+}
