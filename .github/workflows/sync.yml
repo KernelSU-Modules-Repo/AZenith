@@ -1,0 +1,84 @@
+name: Sync release
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [sync-release]
+
+permissions:
+  id-token: write
+  contents: write
+  actions: write
+  attestations: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  SOURCE_REPO: "Liliya2727/AZenith"
+  MODULE_NAME: "AZenith"
+
+jobs:
+  get_tags:
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.check.outputs.tags }}
+      latest: ${{ steps.check.outputs.latest }}
+    steps:
+      - name: Check tags
+        id: check
+        run: |
+          SOURCE_TAGS=$(gh api repos/$SOURCE_REPO/tags | jq -r '.[].name' | sort)
+          CURRENT_TAGS=$(gh api repos/$GITHUB_REPOSITORY/tags | jq -r '.[].name' | sort)
+          MISSING=$(comm -23 <(echo "$SOURCE_TAGS") <(echo "$CURRENT_TAGS"))
+          MISSING_JSON=$(echo "$MISSING" | jq -R -s -c 'split("\n")[:-1] | map(select(. != ""))')
+          echo "tags=$MISSING_JSON" >> $GITHUB_OUTPUT
+          LATEST=$(echo "$SOURCE_TAGS" | tail -1)
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+
+  release:
+    needs: get_tags
+    if: needs.get_tags.outputs.tags != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tag: ${{ fromJson(needs.get_tags.outputs.tags) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.REPO_SYNC_PAT }}
+
+      - name: Find and download artifact
+        id: download
+        run: |
+          ASSETS_JSON=$(gh api repos/$SOURCE_REPO/releases/tags/${{ matrix.tag }} --jq '.assets')
+          ASSET_NAME=$(echo "$ASSETS_JSON" | jq -r '.[].name | select(startswith("AZenith") and endswith(".zip"))')
+
+          if [ -z "$ASSET_NAME" ]; then
+            echo "No artifact found matching pattern"
+            exit 1
+          fi
+
+          echo "Found asset: $ASSET_NAME"
+          gh release download ${{ matrix.tag }} --repo $SOURCE_REPO --pattern "$ASSET_NAME"
+          echo "asset_name=$ASSET_NAME" >> $GITHUB_OUTPUT
+
+      - name: Get release body
+        id: body
+        run: |
+          BODY=$(gh release view ${{ matrix.tag }} --repo $SOURCE_REPO --json body -q .body | sed -E 's/<img[^>]*>//g; s/!\[[^]]*\]\([^)]*\)//g')
+          
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+
+      - name: Create Release
+        uses: KernelSU-Modules-Repo/module_release@main
+        with:
+          tag_name: ${{ matrix.tag }}
+          make_latest: ${{ matrix.tag == needs.get_tags.outputs.latest }}
+          file: "${{ steps.download.outputs.asset_name }}"
+          body: ${{ steps.body.outputs.body }}
+
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: "${{ steps.download.outputs.asset_name }}"
