@@ -1,4 +1,4 @@
-name: Sync release
+Name: Sync release
 on:
   workflow_dispatch:
   repository_dispatch:
@@ -25,7 +25,7 @@ jobs:
       - name: Check tags
         id: check
         run: |
-          SOURCE_TAGS=$(gh api repos/$SOURCE_REPO/tags | jq -r '.[].name' | sort)
+          SOURCE_TAGS=$(gh api repos/$SOURCE_REPO/tags | jq -r '.[].name' | grep "^AZenith" | sort)
           CURRENT_TAGS=$(gh api repos/$GITHUB_REPOSITORY/tags | jq -r '.[].name' | sort)
           MISSING=$(comm -23 <(echo "$SOURCE_TAGS") <(echo "$CURRENT_TAGS"))
           MISSING_JSON=$(echo "$MISSING" | jq -R -s -c 'split("\n")[:-1] | map(select(. != ""))')
@@ -69,7 +69,6 @@ jobs:
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
 
       - name: Create Release
         uses: KernelSU-Modules-Repo/module_release@main
