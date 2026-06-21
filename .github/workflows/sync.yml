@@ -16,30 +16,40 @@ env:
   MODULE_NAME: "AZenith"
 
 jobs:
-  get_tags:
+  get_latest_tag:
     runs-on: ubuntu-latest
     outputs:
-      tags: ${{ steps.check.outputs.tags }}
       latest: ${{ steps.check.outputs.latest }}
+      should_sync: ${{ steps.check.outputs.should_sync }}
     steps:
-      - name: Check tags
+      - name: Check latest tag
         id: check
         run: |
-          SOURCE_TAGS=$(gh api repos/$SOURCE_REPO/tags | jq -r '.[].name' | grep "^AZenith" | sort)
-          CURRENT_TAGS=$(gh api repos/$GITHUB_REPOSITORY/tags | jq -r '.[].name' | sort)
-          MISSING=$(comm -23 <(echo "$SOURCE_TAGS") <(echo "$CURRENT_TAGS"))
-          MISSING_JSON=$(echo "$MISSING" | jq -R -s -c 'split("\n")[:-1] | map(select(. != ""))')
-          echo "tags=$MISSING_JSON" >> $GITHUB_OUTPUT
-          LATEST=$(echo "$SOURCE_TAGS" | tail -1)
+          LATEST=$(gh api repos/$SOURCE_REPO/tags | jq -r '.[].name' | grep "^AZenith" | sort -V | tail -1)
+
+          if [ -z "$LATEST" ]; then
+            echo "No matching tags found in source repo"
+            echo "should_sync=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Latest source tag: $LATEST"
           echo "latest=$LATEST" >> $GITHUB_OUTPUT
 
+          if gh api repos/$GITHUB_REPOSITORY/releases/tags/$LATEST >/dev/null 2>&1; then
+            echo "Tag already exists in this repo, skipping"
+            echo "should_sync=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag is new, will sync"
+            echo "should_sync=true" >> $GITHUB_OUTPUT
+          fi
+
   release:
-    needs: get_tags
-    if: needs.get_tags.outputs.tags != '[]'
+    needs: get_latest_tag
+    if: needs.get_latest_tag.outputs.should_sync == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        tag: ${{ fromJson(needs.get_tags.outputs.tags) }}
+    env:
+      TAG: ${{ needs.get_latest_tag.outputs.latest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -49,7 +59,7 @@ jobs:
       - name: Find and download artifact
         id: download
         run: |
-          ASSETS_JSON=$(gh api repos/$SOURCE_REPO/releases/tags/${{ matrix.tag }} --jq '.assets')
+          ASSETS_JSON=$(gh api repos/$SOURCE_REPO/releases/tags/$TAG --jq '.assets')
           ASSET_NAME=$(echo "$ASSETS_JSON" | jq -r '.[].name | select(startswith("AZenith") and endswith(".zip"))')
 
           if [ -z "$ASSET_NAME" ]; then
@@ -58,14 +68,14 @@ jobs:
           fi
 
           echo "Found asset: $ASSET_NAME"
-          gh release download ${{ matrix.tag }} --repo $SOURCE_REPO --pattern "$ASSET_NAME"
+          gh release download $TAG --repo $SOURCE_REPO --pattern "$ASSET_NAME"
           echo "asset_name=$ASSET_NAME" >> $GITHUB_OUTPUT
 
       - name: Get release body
         id: body
         run: |
-          BODY=$(gh release view ${{ matrix.tag }} --repo $SOURCE_REPO --json body -q .body | sed -E 's/<img[^>]*>//g; s/!\[[^]]*\]\([^)]*\)//g')
-          
+          BODY=$(gh release view $TAG --repo $SOURCE_REPO --json body -q .body | sed -E 's/<img[^>]*>//g; s/!\[[^]]*\]\([^)]*\)//g')
+
           echo "body<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -73,8 +83,8 @@ jobs:
       - name: Create Release
         uses: KernelSU-Modules-Repo/module_release@main
         with:
-          tag_name: ${{ matrix.tag }}
-          make_latest: ${{ matrix.tag == needs.get_tags.outputs.latest }}
+          tag_name: ${{ env.TAG }}
+          make_latest: true
           file: "${{ steps.download.outputs.asset_name }}"
           body: ${{ steps.body.outputs.body }}
 
